@@ -13,7 +13,7 @@ var nextCadr = false;
 var currentCadr = 0;
 var instructionsNum = 1;
 var activeMishens = new Array("11","22","33","44","1");			//надо заполнить динамически реальными id мишеней
-var freeMishens = activeMishens;
+var freeMishens = activeMishens.slice(0);
 
 //программа по умолчанию
 var prog123 = [];
@@ -42,12 +42,21 @@ var p00 = new Map();
  p00.set('nextCadr', false);
  */
  
-//проверяем 2 условие rdm false
+/*//проверяем 2 условие rdm false отрабатывает нормально
   var p10 = new Map();
  p00.set('num', [22 , 44, 33]);
  p00.set('rdm', false);
  p00.set('stopFactorTime', false);
  p00.set('stopValue', 2);
+ p00.set('nextCadr', false);
+ */
+ 
+ //проверяем условие остановки по времени + rdm false
+   var p10 = new Map();
+ p00.set('num', [11 , 1]);
+ p00.set('rdm', false);
+ p00.set('stopFactorTime', true);
+ p00.set('stopValue', 1000);
  p00.set('nextCadr', false);
  
  
@@ -135,22 +144,33 @@ function check(){
 		}
 		else{
 			console.log('кадров больше нет');
+			clear();
 			module.exports.emit('done');
 		}
 	}	
 }
 
-function run_program(forma){
-	console.log('условия остановки попадания = '+ !forma.get('stopFactorTime'));
+function clear(){ //обнуляет все данные текущего кадра, подготовка к запуску следующего как будто первого
 	
-	//если остановка по времени
+	//перенастраиваем обработку попаданий для всех активных мишеней
+		activeMishens.forEach(function(item, i, arr) {
+		console.log( i + ": " + item + " (массив:" + arr + ")" );
+		app_client.once((item+''),function(id){console.log('отменёная обработка '+id);});//заглушка пока
+		console.log('очищен приём сообщений для '+item);
+		});
+}
+
+function run_program(forma){
+	//console.log('условия остановки время = '+ !forma.get('stopFactorTime'));
+	
+	//если остановка по времени +++
 	if(forma.get('stopFactorTime')) {
-		console.log('in if stopFactorTime');
-		var timer = setTimeout(check,forma[stopValue]);
-		timer();										
+		console.log('Условия остановки время');
+		var timer = setTimeout(check,forma.get('stopValue'));										
 		
 		//если рандомные
 		if(forma.get('rdm')) {
+			
 		for(var i=0; i < forma.get('num'); i++){
 			var randomId = freeMishens[Math.floor(Math.random()*freeMishens.length)];
 			module.exports.emit('start',randomId);
@@ -158,13 +178,19 @@ function run_program(forma){
 			
 		}
 		}
-		//если выборочные
+		//если выборочные +++
 		else{
-			for( var i in forma.get('num')){
-			module.exports.emit('start', activeMishens[i]);
-			app_client.once((activeMishens[i]+''),function(arg){var ololooooo = 321;});//заглушка пока
-			freeMishens.splice(freeMishens.indexOf(i),freeMishens.indexOf(i));
-			
+			console.log('Цели выборочные ID = '+forma.get('num'));
+			var arrId = forma.get('num');
+			var target = arrId.length;
+			for( var id in forma.get('num')){
+			var stringId = arrId[id]+'';
+			console.log('Цель выборочная ID = ',stringId);
+			module.exports.emit('start', activeMishens[id]);
+			app_client.once(stringId,function(id){console.log('убит '+id);});//заглушка пока
+			idAndForm.set(stringId, forma);
+			freeMishens.splice(freeMishens.indexOf(stringId),1);
+			console.log('freeMishens ='+freeMishens);
 			}
 		}
 	}
@@ -190,7 +216,7 @@ function run_program(forma){
 			//console.log('freeMishens ='+freeMishens);
 			}
 		}
-		//если выборочные +++
+		//если выборочные +
 		else{
 			console.log('выборочные номера мишеней = '+forma.get('num'));	
 			
